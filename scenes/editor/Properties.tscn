@@ -1,0 +1,135 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/editor/Properties.gd" id="1"]
+
+[node name="Properties" type="MarginContainer"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_bottom = 8
+script = ExtResource("1")
+
+[node name="EmptyLabel" type="Label" parent="."]
+text = "Select a part to inspect"
+horizontal_alignment = 1
+vertical_alignment = 1
+modulate = Color(1, 1, 1, 0.5)
+
+[node name="Content" type="VBoxContainer" parent="."]
+visible = false
+theme_override_constants/separation = 10
+
+[node name="Header" type="Label" parent="Content"]
+text = "—"
+autowrap_mode = 2
+theme_override_font_sizes/font_size = 14
+
+[node name="Separator1" type="HSeparator" parent="Content"]
+
+[node name="StretchSection" type="VBoxContainer" parent="Content"]
+theme_override_constants/separation = 4
+
+[node name="StretchTitle" type="Label" parent="Content/StretchSection"]
+text = "Stretch"
+
+[node name="StretchXRow" type="HBoxContainer" parent="Content/StretchSection"]
+
+[node name="StretchXLabel" type="Label" parent="Content/StretchSection/StretchXRow"]
+custom_minimum_size = Vector2(20, 0)
+text = "X"
+
+[node name="StretchXSlider" type="HSlider" parent="Content/StretchSection/StretchXRow"]
+size_flags_horizontal = 3
+min_value = 0.1
+max_value = 3.0
+step = 0.05
+value = 1.0
+
+[node name="StretchXValue" type="Label" parent="Content/StretchSection/StretchXRow"]
+custom_minimum_size = Vector2(48, 0)
+text = "1.00"
+horizontal_alignment = 2
+
+[node name="StretchYRow" type="HBoxContainer" parent="Content/StretchSection"]
+
+[node name="StretchYLabel" type="Label" parent="Content/StretchSection/StretchYRow"]
+custom_minimum_size = Vector2(20, 0)
+text = "Y"
+
+[node name="StretchYSlider" type="HSlider" parent="Content/StretchSection/StretchYRow"]
+size_flags_horizontal = 3
+min_value = 0.1
+max_value = 3.0
+step = 0.05
+value = 1.0
+
+[node name="StretchYValue" type="Label" parent="Content/StretchSection/StretchYRow"]
+custom_minimum_size = Vector2(48, 0)
+text = "1.00"
+horizontal_alignment = 2
+
+[node name="StretchZRow" type="HBoxContainer" parent="Content/StretchSection"]
+
+[node name="StretchZLabel" type="Label" parent="Content/StretchSection/StretchZRow"]
+custom_minimum_size = Vector2(20, 0)
+text = "Z"
+
+[node name="StretchZSlider" type="HSlider" parent="Content/StretchSection/StretchZRow"]
+size_flags_horizontal = 3
+min_value = 0.1
+max_value = 3.0
+step = 0.05
+value = 1.0
+
+[node name="StretchZValue" type="Label" parent="Content/StretchSection/StretchZRow"]
+custom_minimum_size = Vector2(48, 0)
+text = "1.00"
+horizontal_alignment = 2
+
+[node name="Separator2" type="HSeparator" parent="Content"]
+
+[node name="TwistSection" type="VBoxContainer" parent="Content"]
+theme_override_constants/separation = 4
+
+[node name="TwistTitle" type="Label" parent="Content/TwistSection"]
+text = "Twist"
+
+[node name="TwistRow" type="HBoxContainer" parent="Content/TwistSection"]
+
+[node name="TwistSlider" type="HSlider" parent="Content/TwistSection/TwistRow"]
+size_flags_horizontal = 3
+min_value = -180.0
+max_value = 180.0
+step = 1.0
+value = 0.0
+
+[node name="TwistValue" type="Label" parent="Content/TwistSection/TwistRow"]
+custom_minimum_size = Vector2(48, 0)
+text = "0°"
+horizontal_alignment = 2
+
+[node name="Separator3" type="HSeparator" parent="Content"]
+
+[node name="PaintSection" type="VBoxContainer" parent="Content"]
+theme_override_constants/separation = 4
+
+[node name="PaintTitle" type="Label" parent="Content/PaintSection"]
+text = "Paint Tint"
+
+[node name="PaintPicker" type="ColorPickerButton" parent="Content/PaintSection"]
+custom_minimum_size = Vector2(0, 28)
+color = Color(1, 1, 1, 1)
+edit_alpha = false
+
+[node name="Spacer" type="Control" parent="Content"]
+size_flags_vertical = 3
+
+[node name="DeleteButton" type="Button" parent="Content"]
+text = "Delete this part"
+modulate = Color(1, 0.55, 0.55, 1)
+
+[node name="DebounceTimer" type="Timer" parent="."]
+wait_time = 0.2
+one_shot = true

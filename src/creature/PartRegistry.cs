@@ -73,6 +73,19 @@ public partial class PartRegistry : Node
 
     public Part? Get(string id) => _parts.TryGetValue(id, out var p) ? p : null;
 
+    /// GDScript-friendly: returns every Part as a Godot.Collections.Array.
+    /// Use this from .gd code instead of the C# `All` property (which is
+    /// IReadOnlyDictionary and not callable via the Godot binding).
+    public Godot.Collections.Array<Part> GetAllParts()
+    {
+        var arr = new Godot.Collections.Array<Part>();
+        foreach (var p in _parts.Values)
+        {
+            arr.Add(p);
+        }
+        return arr;
+    }
+
     /// For tests: register a part directly without touching disk.
     public void Register(Part part)
     {
