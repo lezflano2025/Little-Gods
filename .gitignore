@@ -44,6 +44,9 @@ ehthumbs.db
 tests/snapshots/_diff/
 tests/snapshots/_actual/
 
+# GdUnit4 test reports (regenerated per run)
+reports/
+
 # Local env
 .env
 .env.local

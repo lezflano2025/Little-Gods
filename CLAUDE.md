@@ -73,17 +73,23 @@ Project-level config lives in [`.mcp.json`](./.mcp.json). Install/verify per [`d
 ## Common commands
 
 ```powershell
-# Run headless tests
+# Run everything (unit tests + scene tests)
 .\tools\headless_test.ps1
 
+# Just C# unit tests (GdUnit4)
+.\tools\unit_test.ps1
+
+# Just visual snapshots (captures PNG)
+.\tools\snapshot.ps1
+.\tools\snapshot-diff.ps1
+
 # Run a specific scene headless
-godot --headless --quit-after 60 res://tests/headless/<scene>.tscn
+godot --headless --quit-after 600 --path . res://tests/headless/<scene>.tscn
 
-# Take a deterministic snapshot
-.\tools\snapshot.ps1 res://tests/snapshots/<scene>.tscn
-
-# C# unit tests (GdUnit4)
-godot --headless -s addons/gdUnit4/bin/GdUnitCmdTool.gd -a tests/unit
+# Manual GdUnit4 invocation (Windows; uses runtest.cmd because
+# GdUnit4 refuses --headless flag)
+$env:GODOT_BIN = "C:\tools\Godot\Godot_v4.6.3-stable_mono_win64\Godot_v4.6.3-stable_mono_win64_console.exe"
+.\addons\gdUnit4\runtest.cmd -a res://tests/unit
 ```
 
 ## Hooks (configured in `.claude/settings.json`)
