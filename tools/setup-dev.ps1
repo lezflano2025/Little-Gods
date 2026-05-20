@@ -1,4 +1,4 @@
-# tools/setup-dev.ps1 — install developer tooling for Little Gods.
+# tools/setup-dev.ps1 - install developer tooling for Little Gods.
 # Idempotent. Run after cloning. Requires PowerShell 5.1+ and an internet connection.
 
 $ErrorActionPreference = 'Stop'

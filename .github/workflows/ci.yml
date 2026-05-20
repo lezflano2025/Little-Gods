@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  GODOT_VERSION: 4.6.3-stable
+  DOTNET_VERSION: 8.0.x
+
+jobs:
+  headless-tests:
+    name: Headless tests (Ubuntu)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Cache Godot install
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: /opt/godot
+          key: godot-${{ env.GODOT_VERSION }}-linux-mono
+
+      - name: Install Godot ${{ env.GODOT_VERSION }} (.NET)
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          set -e
+          ZIP="Godot_v${GODOT_VERSION}_mono_linux_x86_64.zip"
+          curl -fsSL -o "$ZIP" "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/$ZIP"
+          unzip -q "$ZIP"
+          sudo mkdir -p /opt/godot
+          sudo mv "Godot_v${GODOT_VERSION}_mono_linux_x86_64"/* /opt/godot/
+          sudo chmod +x /opt/godot/Godot_v${GODOT_VERSION}_mono_linux.x86_64
+
+      - name: Wire godot on PATH
+        run: |
+          sudo ln -sf "/opt/godot/Godot_v${GODOT_VERSION}_mono_linux.x86_64" /usr/local/bin/godot
+          godot --version
+
+      - name: Restore + build C#
+        run: dotnet build LittleGods.sln -c Debug --nologo --verbosity normal
+
+      - name: Run headless test harness
+        shell: pwsh
+        run: ./tools/headless_test.ps1
+
+      - name: Upload .godot logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: godot-logs
+          path: |
+            .godot/
+            !.godot/imported/**
+          if-no-files-found: ignore

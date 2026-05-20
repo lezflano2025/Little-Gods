@@ -15,7 +15,7 @@ $leaf = [System.IO.Path]::GetFileName($path)
 $guarded = @('project.godot', 'LittleGods.csproj', 'LittleGods.sln', 'global.json')
 
 if ($guarded -contains $leaf) {
-    Write-Output "[hook] WARNING: editing $leaf — engine/build config. Per CLAUDE.md, persistent changes here should be justified in an ADR (docs/adr/)."
+    Write-Output "[hook] WARNING: editing $leaf - engine/build config. Per CLAUDE.md, persistent changes here should be justified in an ADR (docs/adr/)."
     # Non-blocking
     exit 0
 }

@@ -1,13 +1,13 @@
 # PreToolUse hook: when a Bash/PowerShell tool call contains `git commit`,
-# require headless tests to pass first. Per CLAUDE.md: "do not commit if
-# headless_test.ps1 fails."
+# require headless tests to pass first. Per CLAUDE.md: 'do not commit if
+# headless_test.ps1 fails.'
 
 $ErrorActionPreference = 'Stop'
 
 try {
     $payload = [Console]::In.ReadToEnd() | ConvertFrom-Json
 } catch {
-    # Couldn't parse stdin — bail open (don't block work due to hook bug).
+    # Couldn't parse stdin - bail open (don't block work due to hook bug).
     exit 0
 }
 
@@ -27,7 +27,7 @@ $harness = Join-Path $projectDir 'tools/headless_test.ps1'
 
 # If the headless harness hasn't landed yet (we're mid-M0), don't block.
 if (-not (Test-Path $harness)) {
-    Write-Output "[hook] tools/headless_test.ps1 not present yet — skipping gate (expected during M0)."
+    Write-Output "[hook] tools/headless_test.ps1 not present yet - skipping gate (expected during M0)."
     exit 0
 }
 
