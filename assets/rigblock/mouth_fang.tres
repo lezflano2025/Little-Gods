@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="Part" format=3]
+
+[ext_resource type="Script" path="res://src/creature/Part.cs" id="1_ls7te"]
+
+[resource]
+script = ExtResource("1_ls7te")
+Id = "mouth_fang"
+DisplayName = "Fangs"
+Kind = 3
+Footprint2D = Vector2(0.6, 0.4)

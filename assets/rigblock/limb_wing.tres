@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="Part" format=3]
+
+[ext_resource type="Script" path="res://src/creature/Part.cs" id="1_4qqxt"]
+
+[resource]
+script = ExtResource("1_4qqxt")
+Id = "limb_wing"
+DisplayName = "Wing"
+Kind = 1
+Footprint2D = Vector2(1.5, 0.8)
