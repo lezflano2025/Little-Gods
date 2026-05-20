@@ -53,6 +53,30 @@ jobs:
         shell: pwsh
         run: ./tools/headless_test.ps1
 
+      - name: Install xvfb + Mesa software GL (for snapshots)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb mesa-utils libgl1-mesa-dri
+
+      - name: Capture snapshots under xvfb
+        shell: pwsh
+        run: |
+          xvfb-run -a -s "-screen 0 1024x768x24" pwsh -File ./tools/snapshot.ps1
+
+      - name: Compare snapshots against golden
+        shell: pwsh
+        run: ./tools/snapshot-diff.ps1
+
+      - name: Upload snapshot diffs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshot-diffs
+          path: |
+            tests/snapshots/_actual/
+            tests/snapshots/_diff/
+          if-no-files-found: ignore
+
       - name: Upload .godot logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
