@@ -49,14 +49,18 @@ jobs:
       - name: Restore + build C#
         run: dotnet build LittleGods.sln -c Debug --nologo --verbosity normal
 
-      - name: Run headless test harness
-        shell: pwsh
-        run: ./tools/headless_test.ps1
-
-      - name: Install xvfb + Mesa software GL (for snapshots)
+      - name: Install xvfb + Mesa software GL (GdUnit4 + snapshots)
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends xvfb mesa-utils libgl1-mesa-dri
+
+      - name: Set GODOT_BIN for GdUnit4
+        run: echo "GODOT_BIN=$(which godot)" >> $GITHUB_ENV
+
+      - name: Run headless scene tests + unit tests
+        shell: pwsh
+        run: |
+          xvfb-run -a -s "-screen 0 1024x768x24" pwsh -File ./tools/headless_test.ps1
 
       - name: Capture snapshots under xvfb
         shell: pwsh

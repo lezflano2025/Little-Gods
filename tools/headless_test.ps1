@@ -37,6 +37,10 @@ try {
     # from --import even on success).
     & godot --headless --import 2>&1 | Out-Null
 
+    Write-Host "=== unit tests (GdUnit4) ===" -ForegroundColor Cyan
+    & (Join-Path $PSScriptRoot 'unit_test.ps1')
+    if ($LASTEXITCODE -ne 0) { throw "unit tests failed (exit $LASTEXITCODE)" }
+
     Write-Host "=== headless scene tests ===" -ForegroundColor Cyan
     $scenes = @(Get-ChildItem -Path (Join-Path $projectDir 'tests/headless') -Filter '*.tscn' -ErrorAction SilentlyContinue)
     if ($scenes.Count -eq 0) {

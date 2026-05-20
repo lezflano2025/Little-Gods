@@ -8,4 +8,8 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsNotAsErrors>CS1591</WarningsNotAsErrors>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="gdUnit4.api" Version="5.0.0" />
+  </ItemGroup>
 </Project>
