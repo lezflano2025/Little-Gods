@@ -1,0 +1,55 @@
+[gd_resource type="Resource" script_class="Part" format=3]
+
+[ext_resource type="Script" path="res://src/creature/AttachmentPoint.cs" id="1_w0q1w"]
+[ext_resource type="Script" path="res://src/creature/Part.cs" id="2_gtisk"]
+
+[sub_resource type="Resource" id="Resource_rtv45"]
+script = ExtResource("1_w0q1w")
+Name = "head"
+LocalPosition = Vector3(0, 0, 1)
+LocalNormal = Vector3(0, 0, 1)
+AllowedKinds = 4
+
+[sub_resource type="Resource" id="Resource_uomok"]
+script = ExtResource("1_w0q1w")
+Name = "tail"
+LocalPosition = Vector3(0, 0, -1)
+LocalNormal = Vector3(0, 0, -1)
+AllowedKinds = 2
+
+[sub_resource type="Resource" id="Resource_ofe3f"]
+script = ExtResource("1_w0q1w")
+Name = "left_shoulder"
+LocalPosition = Vector3(-0.3, 0, 0.6)
+LocalNormal = Vector3(-1, 0, 0)
+AllowedKinds = 2
+
+[sub_resource type="Resource" id="Resource_d0u62"]
+script = ExtResource("1_w0q1w")
+Name = "right_shoulder"
+LocalPosition = Vector3(0.3, 0, 0.6)
+LocalNormal = Vector3(1, 0, 0)
+AllowedKinds = 2
+
+[sub_resource type="Resource" id="Resource_yljx4"]
+script = ExtResource("1_w0q1w")
+Name = "left_hip"
+LocalPosition = Vector3(-0.3, 0, -0.4)
+LocalNormal = Vector3(-1, 0, 0)
+AllowedKinds = 2
+
+[sub_resource type="Resource" id="Resource_tm1s7"]
+script = ExtResource("1_w0q1w")
+Name = "right_hip"
+LocalPosition = Vector3(0.3, 0, -0.4)
+LocalNormal = Vector3(1, 0, 0)
+AllowedKinds = 2
+
+[resource]
+script = ExtResource("2_gtisk")
+Id = "spine_basic"
+DisplayName = "Basic Spine"
+Kind = 0
+AttachmentPoints = [SubResource("Resource_rtv45"), SubResource("Resource_uomok"), SubResource("Resource_ofe3f"), SubResource("Resource_d0u62"), SubResource("Resource_yljx4"), SubResource("Resource_tm1s7")]
+PaintRegions = PackedStringArray("back", "belly")
+Footprint2D = Vector2(2, 0.6)

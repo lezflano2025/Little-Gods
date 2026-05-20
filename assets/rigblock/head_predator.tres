@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Part" format=3]
+
+[ext_resource type="Script" path="res://src/creature/AttachmentPoint.cs" id="1_4itx2"]
+[ext_resource type="Script" path="res://src/creature/Part.cs" id="2_tg0gy"]
+
+[sub_resource type="Resource" id="Resource_0wcxx"]
+script = ExtResource("1_4itx2")
+Name = "jaw"
+LocalPosition = Vector3(0, -0.1, 0.4)
+LocalNormal = Vector3(0, 0, 1)
+AllowedKinds = 8
+
+[resource]
+script = ExtResource("2_tg0gy")
+Id = "head_predator"
+DisplayName = "Predator Head"
+Kind = 2
+AttachmentPoints = [SubResource("Resource_0wcxx")]
+Footprint2D = Vector2(0.8, 0.7)
