@@ -64,9 +64,11 @@ Defined in `.claude/agents/`. Use them by role:
 
 ## MCP servers (set up in M0)
 
-- `godot-mcp` (tomyud1) — scene introspection + edits from Claude Code. Fallback: Coding-Solo's fork.
-- **Blender MCP** — Rigblock part authoring.
-- **Supabase MCP** — creature gallery backend (from M5).
+Project-level config lives in [`.mcp.json`](./.mcp.json). Install/verify per [`docs/claude-setup.md`](./docs/claude-setup.md).
+
+- **godot-mcp** — `@coding-solo/godot-mcp` via `npx`. Coding-Solo's fork chosen over `tomyud1/godot-mcp` (PRD §5.2 listed tomyud1 first; Coding-Solo's is the actively-maintained npm package). Scene introspection + edits from Claude Code.
+- **Blender MCP** — `blender-mcp` via `uvx` (server) plus the matching Blender add-on. Rigblock part authoring.
+- **Supabase MCP** — installed globally on this machine via the Supabase Claude plugin (no project-level config). Used from M5 onward.
 
 ## Common commands
 
