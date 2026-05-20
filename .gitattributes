@@ -1,0 +1,36 @@
+# Normalize line endings on commit; check out OS-native on Windows.
+* text=auto eol=lf
+
+# Text source
+*.cs           text eol=lf
+*.gd           text eol=lf
+*.tscn         text eol=lf
+*.tres         text eol=lf
+*.md           text eol=lf
+*.yml          text eol=lf
+*.yaml         text eol=lf
+*.json         text eol=lf
+*.sh           text eol=lf
+*.ps1          text eol=lf crlf=input
+
+# Godot project/config
+project.godot  text eol=lf
+*.import       text eol=lf
+*.cfg          text eol=lf
+
+# Binary assets
+*.png          binary
+*.jpg          binary
+*.jpeg         binary
+*.bmp          binary
+*.tga          binary
+*.exr          binary
+*.glb          binary
+*.fbx          binary
+*.blend        binary
+*.blend1       binary
+*.wav          binary
+*.ogg          binary
+*.mp3          binary
+*.ttf          binary
+*.otf          binary

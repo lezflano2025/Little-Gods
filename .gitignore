@@ -1,0 +1,53 @@
+# Godot 4+
+.godot/
+.import/
+export.cfg
+export_presets.cfg
+
+# Godot Android
+android/build/
+android/libs/
+
+# Mono / .NET artifacts produced by Godot
+.mono/
+mono_crash.*.json
+data_*/
+
+# .NET / C#
+bin/
+obj/
+*.user
+*.userosscache
+*.suo
+*.cache
+*.sln.docstates
+[Dd]ebug/
+[Rr]elease/
+
+# IDEs
+.vs/
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# Logs
+*.log
+*.tlog
+
+# Snapshot diff scratch
+tests/snapshots/_diff/
+tests/snapshots/_actual/
+
+# Local env
+.env
+.env.local
+
+# Claude Code session artifacts (keep agents/hooks tracked; ignore caches)
+.claude/cache/
+.claude/local/
