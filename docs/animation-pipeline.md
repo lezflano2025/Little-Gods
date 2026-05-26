@@ -1,14 +1,14 @@
-# Animation pipeline — M2: metaball skin generation
+# Animation pipeline — metaball skin (M2) + procedural locomotion (M3)
 
-**Status:** M2 complete. The M3 half (IK, gait, animation) is deferred; see the bottom of this document.
-
-This document covers the M2 pipeline: how a `Recipe` becomes an `ArrayMesh` + `Skeleton3D` visible in the 3D editor preview. The code is the authoritative reference; this document explains the *why* behind each step.
+**Status:** M2 + M3 complete. M2 (below) is the `Recipe → ArrayMesh + Skeleton3D` mesh pipeline; M3 (the "M3 — procedural animation" section at the bottom) is the IK / gait / locomotion layer that makes creatures walk. The code is the authoritative reference; this document explains the *why* behind each step.
 
 ---
 
 ## Bone model
 
-One bone per placed part. Bones are world-space line segments `(Head, Tail)` with a radius at each end (`RadiusHead`, `RadiusTail`) and a `ParentIndex`.
+> **M3 update (ADR-0003):** `PartKind.Limb` parts now resolve to a **two-bone chain** (upper + lower, knee at the midpoint, colinear at rest), so bones are no longer 1:1 with attachments. `SkeletonResolver` records a `LimbChain` per limb and maintains an attachment→tip-bone map (a child parents to its parent attachment's tip bone, never `i + 1`). The one-bone description below still holds for non-limb parts (spine, head, mouth). See "M3 — procedural animation".
+
+One bone per placed part (non-limb). Bones are world-space line segments `(Head, Tail)` with a radius at each end (`RadiusHead`, `RadiusTail`) and a `ParentIndex`.
 
 **Root (spine) bone — bone 0.**
 Centred on its local +Z axis at the world origin:
@@ -139,10 +139,48 @@ Key techniques: field evaluated only within the tight `Bounds` AABB; `Parallel.F
 
 ---
 
-## Deferred to M3
+## M3 — procedural animation
 
-- **Two-bone analytic IK.** Limb chain retargeting; real joint orientations.
-- **Limb-type classification.** Distinguishing leg / arm / wing / tail from generic `PartKind`.
-- **Gait phase model.** Per-limb phase offsets; footstep timing.
-- **Bind-pose animation.** Actual `Skeleton3D` pose animation; M2 emits a rest-pose skeleton only.
-- **Orientation mirroring.** M2 mirrors attachment *positions* only (X-flip); M3 mirrors orientation when IK retargeting arrives.
+M3 makes creatures walk. All math is pure C# in `src/anim/`, deterministic with time as an explicit `double seconds` (no clock, no RNG). The contract types are frozen in `docs/m3-contract.md`.
+
+### Skin binding (so posing deforms the mesh)
+
+M2 emitted weights + a rest-pose `Skeleton3D` only. M3 adds `GodotMeshBuilder.BuildSkin`: a Godot `Skin` whose **bind pose for bone *i* is the inverse of that bone's global rest**. The skinning matrix `globalPose · bindPose` is the identity at rest (undeformed) and deforms as the skeleton is posed. `CreaturePreview` parents the mesh under the `Skeleton3D` and exposes `ApplyPose(Pose)` — local pose = `rest · delta`.
+
+### Two-bone limbs (ADR-0003)
+
+`SkeletonResolver` splits each `PartKind.Limb` into an upper (hip→knee) and lower (knee→foot) bone, colinear at rest. It records a `LimbChain` (root/knee/foot bone indices + segment lengths + slot) per limb. The auto-skinner (4-nearest by segment distance) adapts automatically to the extra bones.
+
+### Two-bone IK
+
+`TwoBoneIk.Solve(root, upperLen, lowerLen, target, pole)` — closed-form law of cosines. The knee is placed in the plane spanned by `(target − root)` and the pole hint. Reach-clamped: an out-of-range target returns full extension toward it (`Reachable = false`) rather than NaN; degenerate inputs (target at root, zero pole, tiny/negative lengths) stay finite.
+
+### Limb classification + gait
+
+`LimbClassifier.Classify` tags each `LimbChain` as `Leg / Arm / Wing / Tail / Other` from its slot name and part id. `GaitController.ForLegCount` returns a phase-offset preset by leg count — biped (alternating), quadruped (diagonal pairs), hexapod (alternating tripod), octopod (metachronal wave) — and `PhaseOf` / `IsStance` evaluate a leg's cycle phase at time *t*.
+
+### Locomotion tick
+
+`Locomotion.Tick(skeleton, legChainIndices, gait, params, seconds)` is the integrator:
+
+1. Advance the body forward (`StrideLength · CadenceHz`, one stride per cycle) with a vertical bob.
+2. Per leg: read the gait phase → plan a foot target. **Stance** feet are planted on the ground plane (their body-local Z slides back exactly as fast as the body advances, so they hold world position — no skating). **Swing** feet arc forward, lifted by a sine.
+3. Solve each leg with `TwoBoneIk`.
+4. Convert the IK knee/foot into Skeleton3D **local pose deltas**: since a leg's upper bone parents to the (unposed) spine, `delta_upper = restGlobal_upper⁻¹ · posedGlobal_upper`; the lower hangs off the posed upper. The result is a `Pose`.
+
+`CreaturePreview.WalkTick(seconds)` wires this for GDScript: classify legs → gait by leg count → tick → `ApplyPose` → return the body position (the node advances + bobs). The body-local pose + node-space body transform keep the IK math frame-stable.
+
+### Secondary motion
+
+`Jiggle.Step` is a deterministic spring-damped follower: a point chases a moving anchor, so when the body accelerates it lags then springs back (tail / belly jiggle). Semi-implicit Euler with an explicit, clamped dt.
+
+### The Hecker gate
+
+`HeckerWalkTests` runs the **same** locomotion path on synthetic 2-, 4-, 6- and 8-leg skeletons for 60 deterministic seconds each, asserting: no NaN/Inf, stance feet on the ground plane, no joint over-reach (the IK never pops to full stretch), and no foot skate. **All four leg counts pass on one code path** — the PRD §7 M3 acceptance gate, automated half. A walk render per leg count is the human-review half (`tests/snapshots/preview3d_walk.tscn` covers the quadruped; 6/8-leg renders await hexapod/octopod rigblock parts — content follow-up).
+
+### Still open (M3 polish / later)
+
+- **Per-leg pole / stance tuning** for more natural knee direction and stance width (mechanics are correct; this is visual polish).
+- **Balance shift** (COM over the support polygon) beyond the vertical bob.
+- **6/8-leg rigblock parts** so high-leg-count creatures are recipe-built (and renderable), not just synthetic test skeletons.
+- **Orientation mirroring** in the resolver (M2 mirrors attachment *positions* only); IK retargeting already makes both sides walk regardless.
