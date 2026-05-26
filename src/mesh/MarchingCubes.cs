@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Godot;
 
 namespace LittleGods.Mesh;
@@ -30,8 +31,11 @@ namespace LittleGods.Mesh;
 ///    normalised and negated so they point outward (toward decreasing field).
 ///
 /// Pure and deterministic: cells are marched in a fixed (z, y, x) order, with no
-/// RNG, no clock and no parallelism. Identical field + params yield byte-for-byte
-/// identical arrays.
+/// RNG and no clock. The two field-heavy passes (corner sampling and per-vertex
+/// normals) are parallelised, but each writes only its own array slot, so the
+/// output is independent of thread scheduling. The vertex-emitting cell march
+/// stays serial, so vertex ordering - and thus the arrays - are byte-for-byte
+/// identical across runs.
 /// </summary>
 public static class MarchingCubes
 {
@@ -167,20 +171,23 @@ public static class MarchingCubes
         IScalarField field, Vector3 origin, float cellSize, int sx, int sy, int sz)
     {
         var values = new float[sx * sy * sz];
-        int i = 0;
-        for (int z = 0; z < sz; z++)
+        // Parallel over Z slabs: each slab writes a disjoint range of the flat
+        // array, so the result is identical regardless of thread scheduling.
+        Parallel.For(0, sz, z =>
         {
             float wz = origin.Z + z * cellSize;
+            int zBase = z * sy * sx;
             for (int y = 0; y < sy; y++)
             {
                 float wy = origin.Y + y * cellSize;
+                int rowBase = zBase + y * sx;
                 for (int x = 0; x < sx; x++)
                 {
                     float wx = origin.X + x * cellSize;
-                    values[i++] = field.Sample(new Vector3(wx, wy, wz));
+                    values[rowBase + x] = field.Sample(new Vector3(wx, wy, wz));
                 }
             }
-        }
+        });
         return values;
     }
 
@@ -281,7 +288,8 @@ public static class MarchingCubes
         float h = cellSize * 0.5f;
         float inv2h = 1f / (2f * h);
         var normals = new Vector3[verts.Length];
-        for (int i = 0; i < verts.Length; i++)
+        // Parallel over vertices: each writes only normals[i].
+        Parallel.For(0, verts.Length, i =>
         {
             Vector3 p = verts[i];
             float dx = field.Sample(new Vector3(p.X + h, p.Y, p.Z))
@@ -295,7 +303,7 @@ public static class MarchingCubes
             var n = new Vector3(-dx * inv2h, -dy * inv2h, -dz * inv2h);
             float len = n.Length();
             normals[i] = len > 1e-12f ? n / len : Vector3.Up;
-        }
+        });
         return normals;
     }
 }
