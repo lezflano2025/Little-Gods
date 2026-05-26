@@ -17,3 +17,6 @@ DisplayName = "Predator Head"
 Kind = 2
 AttachmentPoints = [SubResource("Resource_0wcxx")]
 Footprint2D = Vector2(0.8, 0.7)
+BoneLength = 0.7
+RadiusStart = 0.4
+RadiusEnd = 0.34

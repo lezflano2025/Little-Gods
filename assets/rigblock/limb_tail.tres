@@ -8,3 +8,6 @@ Id = "limb_tail"
 DisplayName = "Tail"
 Kind = 1
 Footprint2D = Vector2(0.3, 1.4)
+BoneLength = 1.4
+RadiusStart = 0.25
+RadiusEnd = 0.05

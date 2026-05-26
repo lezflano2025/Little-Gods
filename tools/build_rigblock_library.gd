@@ -49,18 +49,19 @@ func _init() -> void:
 	save_part(build_spine_basic(), "spine_basic.tres")
 
 	# Limbs - leaves for M1 (no chained tips). M2+ may add a "tip" slot.
-	save_part(build_limb("limb_walker", "Walking Limb", Vector2(0.4, 1.2)), "limb_walker.tres")
-	save_part(build_limb("limb_runner", "Running Limb", Vector2(0.4, 1.6)), "limb_runner.tres")
-	save_part(build_limb("limb_wing", "Wing", Vector2(1.5, 0.8)), "limb_wing.tres")
-	save_part(build_limb("limb_tail", "Tail", Vector2(0.3, 1.4)), "limb_tail.tres")
+	# Args: id, display, footprint, bone_len, radius_start, radius_end.
+	save_part(build_limb("limb_walker", "Walking Limb", Vector2(0.4, 1.2), 1.2, 0.22, 0.12), "limb_walker.tres")
+	save_part(build_limb("limb_runner", "Running Limb", Vector2(0.4, 1.6), 1.6, 0.18, 0.08), "limb_runner.tres")
+	save_part(build_limb("limb_wing", "Wing", Vector2(1.5, 0.8), 0.8, 0.30, 0.12), "limb_wing.tres")
+	save_part(build_limb("limb_tail", "Tail", Vector2(0.3, 1.4), 1.4, 0.25, 0.05), "limb_tail.tres")
 
 	# Heads - one outward-facing "jaw" slot that accepts mouths.
-	save_part(build_head("head_predator", "Predator Head"), "head_predator.tres")
-	save_part(build_head("head_herbivore", "Herbivore Head"), "head_herbivore.tres")
+	save_part(build_head("head_predator", "Predator Head", 0.7, 0.40, 0.34), "head_predator.tres")
+	save_part(build_head("head_herbivore", "Herbivore Head", 0.7, 0.40, 0.38), "head_herbivore.tres")
 
 	# Mouths - leaves.
-	save_part(build_mouth("mouth_beak", "Beak", Vector2(0.5, 0.3)), "mouth_beak.tres")
-	save_part(build_mouth("mouth_fang", "Fangs", Vector2(0.6, 0.4)), "mouth_fang.tres")
+	save_part(build_mouth("mouth_beak", "Beak", Vector2(0.5, 0.3), 0.3, 0.18, 0.04), "mouth_beak.tres")
+	save_part(build_mouth("mouth_fang", "Fangs", Vector2(0.6, 0.4), 0.4, 0.25, 0.10), "mouth_fang.tres")
 
 	print("Built 9 parts in %s" % OUT_DIR)
 	quit(0)
@@ -72,6 +73,10 @@ func build_spine_basic() -> Resource:
 	part.DisplayName = "Basic Spine"
 	part.Kind = KIND_SPINE
 	part.Footprint2D = Vector2(2.0, 0.6)
+	# Centred body bone running z=[-1, 1], slightly tapered toward the tail.
+	part.BoneLength = 2.0
+	part.RadiusStart = 0.45
+	part.RadiusEnd = 0.35
 	part.PaintRegions = PackedStringArray(["back", "belly"])
 	part.AttachmentPoints = [
 		make_ap("head",           Vector3(0, 0, 1),     Vector3(0, 0, 1),  MASK_HEAD),
@@ -84,34 +89,46 @@ func build_spine_basic() -> Resource:
 	return part
 
 
-func build_limb(id: String, display: String, footprint: Vector2) -> Resource:
+func build_limb(id: String, display: String, footprint: Vector2,
+		bone_len: float, r_start: float, r_end: float) -> Resource:
 	var part: Resource = _part_script.new()
 	part.Id = id
 	part.DisplayName = display
 	part.Kind = KIND_LIMB
 	part.Footprint2D = footprint
+	part.BoneLength = bone_len
+	part.RadiusStart = r_start
+	part.RadiusEnd = r_end
 	part.AttachmentPoints = []
 	return part
 
 
-func build_head(id: String, display: String) -> Resource:
+func build_head(id: String, display: String,
+		bone_len: float, r_start: float, r_end: float) -> Resource:
 	var part: Resource = _part_script.new()
 	part.Id = id
 	part.DisplayName = display
 	part.Kind = KIND_HEAD
 	part.Footprint2D = Vector2(0.8, 0.7)
+	part.BoneLength = bone_len
+	part.RadiusStart = r_start
+	part.RadiusEnd = r_end
 	part.AttachmentPoints = [
 		make_ap("jaw", Vector3(0, -0.1, 0.4), Vector3(0, 0, 1), MASK_MOUTH),
 	]
 	return part
 
 
-func build_mouth(id: String, display: String, footprint: Vector2) -> Resource:
+func build_mouth(id: String, display: String, footprint: Vector2,
+		bone_len: float, r_start: float, r_end: float) -> Resource:
 	var part: Resource = _part_script.new()
 	part.Id = id
 	part.DisplayName = display
 	part.Kind = KIND_MOUTH
 	part.Footprint2D = footprint
+	part.BoneLength = bone_len
+	part.RadiusStart = r_start
+	part.RadiusEnd = r_end
 	part.AttachmentPoints = []
 	return part
 

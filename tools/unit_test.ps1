@@ -13,9 +13,10 @@ $isWindowsHost = ($null -eq $PSVersionTable.Platform) -or ($PSVersionTable.Platf
 if ($isWindowsHost) {
     if (Test-Path 'C:\Program Files\dotnet\dotnet.exe') {
         $env:DOTNET_ROOT = 'C:\Program Files\dotnet'
-        if (-not ($env:Path -like '*C:\Program Files\dotnet*')) {
-            $env:Path = "C:\Program Files\dotnet;" + $env:Path
-        }
+        # Prepend unconditionally so the 64-bit SDK host wins over any x86
+        # dotnet (C:\Program Files (x86)\dotnet) that ships without an SDK and
+        # would otherwise be found first on PATH.
+        $env:Path = "C:\Program Files\dotnet;" + $env:Path
     }
     if (-not $env:GODOT_BIN) {
         $env:GODOT_BIN = 'C:\tools\Godot\Godot_v4.6.3-stable_mono_win64\Godot_v4.6.3-stable_mono_win64_console.exe'

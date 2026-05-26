@@ -8,3 +8,6 @@ Id = "mouth_fang"
 DisplayName = "Fangs"
 Kind = 3
 Footprint2D = Vector2(0.6, 0.4)
+BoneLength = 0.4
+RadiusStart = 0.25
+RadiusEnd = 0.1
