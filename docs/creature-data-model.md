@@ -26,6 +26,9 @@ A Rigblock atom from the library. Immutable at runtime.
 | `AttachmentPoints` | `Array<AttachmentPoint>` | empty | Named slots where child parts can connect. |
 | `PaintRegions` | `string[]` | empty | Symbolic region names (e.g. `"back", "belly"`). |
 | `Footprint2D` | `Vector2` | `(1, 1)` | M1 blueprint editor uses this to render the part as a 2D shape. M2 brings real 3D meshes. |
+| `BoneLength` | `float` | `1.0` | M2. Length of the metaball bone along the part's local +Z axis, in world units. Scaled by `Morph.Stretch.Z` at resolve time. |
+| `RadiusStart` | `float` | `0.5` | M2. Metaball radius at the bone's head (the slot-anchor / base end). Scaled by the average of `Morph.Stretch.X/Y`. |
+| `RadiusEnd` | `float` | `0.5` | M2. Metaball radius at the bone's tail (the far / tip end). Scaled the same as `RadiusStart`. |
 
 ### `AttachmentPoint`  (`src/creature/AttachmentPoint.cs`)
 
@@ -117,6 +120,8 @@ The 2D editor uses the same convention via inlined GDScript helpers in `scripts/
 `RecipeValidator.IsValid` is the shortcut for `Validate(...).Count == 0`.
 
 ## Format version policy
+
+The M2 fields `BoneLength`, `RadiusStart`, and `RadiusEnd` were added to `Part` in M2. They are additive — `FormatVersion` remains 1. Older `.tres` files that omit these fields will silently receive the coded defaults (`1.0`, `0.5`, `0.5`) via the Godot resource binding, which is the correct fallback behaviour.
 
 - **Adding a field** to any of the above resources: keep `FormatVersion` at the current value. Loading an older `.tres` will silently default the missing field via the Godot resource binding.
 - **Renaming or removing a field**: bump `FormatVersion`, add a migration in `Recipe.Load` that reads the older format and synthesises the new one. The existing `RecipeVersionException` path catches anything unmigrated.
