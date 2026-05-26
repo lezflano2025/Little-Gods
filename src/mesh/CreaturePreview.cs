@@ -70,11 +70,19 @@ public partial class CreaturePreview : Node3D
         _meshInstance = new MeshInstance3D
         {
             Name = "CreatureMesh",
+            // Spore-style stylized cartoon look (ADR-0004): saturated albedo,
+            // smooth-ish, zero metallic, soft rim light for the rounded read.
+            // First pass via StandardMaterial3D; a cel shader + outline is a
+            // later refinement. Per-creature paint will drive AlbedoColor once
+            // the paint pipeline lands.
             MaterialOverride = new StandardMaterial3D
             {
-                AlbedoColor = new Color(0.82f, 0.78f, 0.70f),
-                Roughness   = 0.85f,
+                AlbedoColor = new Color(0.46f, 0.74f, 0.55f), // friendly Spore green
+                Roughness   = 0.5f,
                 Metallic    = 0.0f,
+                RimEnabled  = true,
+                Rim         = 0.6f,
+                RimTint     = 0.25f,
             },
         };
 
