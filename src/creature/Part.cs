@@ -27,4 +27,18 @@ public partial class Part : Resource
     /// 2D footprint used by the blueprint editor for hit-testing and rendering.
     /// X = width, Y = height (or for circles, X = diameter).
     [Export] public Vector2 Footprint2D { get; set; } = Vector2.One;
+
+    // --- M2 metaball skin fields (additive; FormatVersion stays 1 per
+    // docs/creature-data-model.md). Define the bone this part contributes:
+    // length along the part's local +Z axis, with a radius at each end so the
+    // metaball field can grow tapered spheres along it. See SkeletonResolver. ---
+
+    /// Bone length along the part's local +Z axis, in world units.
+    [Export] public float BoneLength { get; set; } = 1.0f;
+
+    /// Metaball radius at the bone's head (the slot-anchor / base end).
+    [Export] public float RadiusStart { get; set; } = 0.5f;
+
+    /// Metaball radius at the bone's tail (the far / tip end).
+    [Export] public float RadiusEnd { get; set; } = 0.5f;
 }

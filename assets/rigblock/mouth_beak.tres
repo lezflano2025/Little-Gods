@@ -8,3 +8,6 @@ Id = "mouth_beak"
 DisplayName = "Beak"
 Kind = 3
 Footprint2D = Vector2(0.5, 0.3)
+BoneLength = 0.3
+RadiusStart = 0.18
+RadiusEnd = 0.04

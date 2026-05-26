@@ -8,3 +8,6 @@ Id = "limb_wing"
 DisplayName = "Wing"
 Kind = 1
 Footprint2D = Vector2(1.5, 0.8)
+BoneLength = 0.8
+RadiusStart = 0.3
+RadiusEnd = 0.12

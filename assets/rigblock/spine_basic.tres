@@ -53,3 +53,6 @@ Kind = 0
 AttachmentPoints = [SubResource("Resource_rtv45"), SubResource("Resource_uomok"), SubResource("Resource_ofe3f"), SubResource("Resource_d0u62"), SubResource("Resource_yljx4"), SubResource("Resource_tm1s7")]
 PaintRegions = PackedStringArray("back", "belly")
 Footprint2D = Vector2(2, 0.6)
+BoneLength = 2.0
+RadiusStart = 0.45
+RadiusEnd = 0.35

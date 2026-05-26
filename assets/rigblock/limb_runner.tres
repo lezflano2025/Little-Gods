@@ -8,3 +8,6 @@ Id = "limb_runner"
 DisplayName = "Running Limb"
 Kind = 1
 Footprint2D = Vector2(0.4, 1.6)
+BoneLength = 1.6
+RadiusStart = 0.18
+RadiusEnd = 0.08
