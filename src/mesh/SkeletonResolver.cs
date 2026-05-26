@@ -1,23 +1,32 @@
 using System.Collections.Generic;
 using Godot;
+using LittleGods.Anim;
 using LittleGods.Creature;
 
 namespace LittleGods.Mesh;
 
 /// Resolves a Recipe (+ PartRegistry) into a world-space CreatureSkeleton.
 ///
-/// The bone model is the one locked in docs/m2-plan.md:
-///   - One bone per placed part.
-///   - The ROOT (spine, placed at origin) is centred on its local +Z axis:
-///     Head = -Z * L/2, Tail = +Z * L/2.
-///   - Every ATTACHMENT grows from its slot anchor: Head = the anchor point,
-///     Tail = Head + (anchor's world +Z) * BoneLength.
-///   - Morph.Stretch.Z scales bone length; Stretch.X/Y scale the radii;
+/// Bone model (ADR-0002 for the base, ADR-0003 for limbs):
+///   - Bone 0 is the ROOT spine, placed at the origin and centred on its local
+///     +Z axis: Head = -Z * L/2, Tail = +Z * L/2.
+///   - Every ATTACHMENT grows from its slot anchor along the slot's outward
+///     LocalNormal (so shoulders splay, the tail extends back, etc.).
+///   - A NON-LIMB part contributes ONE bone (Head = anchor, Tail = anchor +
+///     axis * BoneLength).
+///   - A PartKind.Limb part contributes a TWO-BONE CHAIN: an upper bone from
+///     the anchor to a mid knee, and a lower bone from the knee to the foot
+///     (the tip). The two sub-bones are colinear at rest; IK bends the knee at
+///     runtime. Radii taper continuously through the knee. A LimbChain record
+///     is emitted per limb for the animation layer.
+///   - Morph.Stretch.Z scales bone/chain length; Stretch.X/Y scale radii;
 ///     Twist rotates the part frame about +Z (a no-op on round metaball skin,
-///     but composed in so a child part's slots rotate with it).
+///     but composed so a child part's slots rotate with it).
 ///
-/// Bone 0 is always the root. Recipe.Attachments[i] maps to bone i + 1, so a
-/// child's parent bone index is ParentPartIndex + 1 (or 0 when -1 = spine).
+/// Because bones are no longer 1:1 with attachments, the resolver maintains an
+/// attachment -> tip-bone map: a child's parent bone is its parent attachment's
+/// LAST emitted bone (the foot for a limb, the single bone otherwise), or bone
+/// 0 (the spine) when ParentPartIndex < 0. Never assume "bone = attachment + 1".
 ///
 /// Pure and deterministic: no RNG, no clock (PRD invariant 4). Reads only
 /// generic Rigblock data, so the same path works for non-creature recipes
@@ -26,6 +35,10 @@ public static class SkeletonResolver
 {
     private const float DefaultBoneLength = 1.0f;
     private const float DefaultRadius = 0.5f;
+
+    /// Fraction of a limb's length assigned to the upper (hip→knee) bone.
+    /// 0.5 places the knee at the midpoint (ADR-0003).
+    private const float LimbKneeSplit = 0.5f;
 
     public static CreatureSkeleton Resolve(Recipe recipe, PartRegistry registry)
     {
@@ -41,15 +54,18 @@ public static class SkeletonResolver
         }
 
         var bones = new List<Bone>(recipe.Attachments.Count + 1);
+        var limbChains = new List<LimbChain>();
+
+        // The bone a child of attachment i should parent to (its tip bone).
+        var attachmentTipBone = new int[recipe.Attachments.Count];
 
         // Bone 0: the root spine, centred on its +Z axis at the world origin.
         float spineLen = BoneLengthOf(spinePart);
-        float spineRadius = RadiusStartOf(spinePart);
         var spineAxis = Vector3.Back; // +Z, the body axis convention
         bones.Add(new Bone(
             head: -spineAxis * (spineLen * 0.5f),
             tail: spineAxis * (spineLen * 0.5f),
-            radiusHead: spineRadius,
+            radiusHead: RadiusStartOf(spinePart),
             radiusTail: RadiusEndOf(spinePart),
             parentIndex: -1));
 
@@ -97,15 +113,43 @@ public static class SkeletonResolver
             axis = axis.LengthSquared() > 1e-12f ? axis.Normalized() : spineAxis;
 
             Vector3 head = anchorFrame.Origin;
-            Vector3 tail = head + axis * length;
+            float rStart = RadiusStartOf(childPart) * radiusScale;
+            float rEnd = RadiusEndOf(childPart) * radiusScale;
 
-            int parentBone = att.ParentPartIndex < 0 ? 0 : att.ParentPartIndex + 1;
-            bones.Add(new Bone(
-                head: head,
-                tail: tail,
-                radiusHead: RadiusStartOf(childPart) * radiusScale,
-                radiusTail: RadiusEndOf(childPart) * radiusScale,
-                parentIndex: parentBone));
+            int parentBone = att.ParentPartIndex < 0 ? 0 : attachmentTipBone[att.ParentPartIndex];
+
+            if (childPart != null && childPart.Kind == PartKind.Limb)
+            {
+                // Two-bone chain: upper (hip→knee) + lower (knee→foot).
+                float upperLen = length * LimbKneeSplit;
+                float lowerLen = length - upperLen;
+                Vector3 knee = head + axis * upperLen;
+                Vector3 foot = head + axis * length;
+                float rKnee = Mathf.Lerp(rStart, rEnd, LimbKneeSplit);
+
+                int upperIdx = bones.Count;
+                bones.Add(new Bone(head, knee, rStart, rKnee, parentBone));
+                int lowerIdx = bones.Count;
+                bones.Add(new Bone(knee, foot, rKnee, rEnd, upperIdx));
+
+                limbChains.Add(new LimbChain(
+                    attachmentIndex: i,
+                    rootBone: upperIdx,
+                    kneeBone: lowerIdx,
+                    footBone: lowerIdx,
+                    upperLength: upperLen,
+                    lowerLength: lowerLen,
+                    slotName: att.ParentSlotName));
+
+                attachmentTipBone[i] = lowerIdx;
+            }
+            else
+            {
+                Vector3 tail = head + axis * length;
+                int idx = bones.Count;
+                bones.Add(new Bone(head, tail, rStart, rEnd, parentBone));
+                attachmentTipBone[i] = idx;
+            }
 
             // This part's children attach in its morphed/twisted frame.
             var twist = new Transform3D(new Basis(Vector3.Back, morph.Twist), Vector3.Zero);
@@ -113,7 +157,7 @@ public static class SkeletonResolver
             childFrames[i] = anchorFrame * twist * scale;
         }
 
-        return new CreatureSkeleton(bones.ToArray());
+        return new CreatureSkeleton(bones.ToArray(), limbChains.ToArray());
     }
 
     private static AttachmentPoint? FindSlot(Part? part, string slotName)

@@ -80,7 +80,11 @@ public class CreatureMesherTests
     }
 
     // -----------------------------------------------------------------------
-    // 3. Skeleton has the expected bone count (1 spine + 7 attachments = 8).
+    // 3. Skeleton has the expected bone count under the ADR-0003 two-bone-limb
+    //    model: limb parts split into 2 bones, non-limb parts stay 1.
+    //    The 7 attachments are 5 limbs (4 limb_walker + 1 limb_tail) + head +
+    //    jaw (mouth), so: spine (1) + 5 limbs x 2 (10) + head (1) + jaw (1) = 13,
+    //    with one LimbChain per limb (5).
     // -----------------------------------------------------------------------
     [TestCase]
     public void Skeleton_has_expected_bone_count()
@@ -88,8 +92,8 @@ public class CreatureMesherTests
         var recipe = Build7AttachmentRecipe();
         var result = CreatureMesher.Build(recipe, _registry, CoarseGrid);
 
-        // spine (1) + 7 attachments = 8
-        AssertThat(result.Skeleton.Count).IsEqual(8);
+        AssertThat(result.Skeleton.Count).IsEqual(13);
+        AssertThat(result.Skeleton.LimbChains.Length).IsEqual(5);
     }
 
     // -----------------------------------------------------------------------
