@@ -1,24 +1,38 @@
 using Godot;
+using LittleGods.Anim;
 
 namespace LittleGods.Mesh;
 
 /// The resolved skeleton of one creature: an ordered array of world-space
-/// bones. Bone 0 is always the root (the spine part placed at origin); each
-/// subsequent bone corresponds to Recipe.Attachments[i] at index i + 1.
+/// bones. Bone 0 is always the root (the spine part placed at origin).
 ///
-/// Produced by SkeletonResolver. Consumed by MetaballField (M2 P1 B) and
-/// AutoSkinner (M2 P1 C).
+/// Bones are NOT 1:1 with attachments (ADR-0003): a non-limb part contributes
+/// one bone, a PartKind.Limb part contributes a two-bone chain (upper + lower
+/// joined at a knee). Use <see cref="LimbChains"/> and each bone's ParentIndex
+/// rather than assuming "bone = attachment + 1". Bones are in topological order
+/// (every bone's parent precedes it), so a single forward pass can accumulate
+/// global transforms.
+///
+/// Produced by SkeletonResolver. Consumed by MetaballField + AutoSkinner (M2)
+/// and the animation layer (M3) via <see cref="LimbChains"/>.
 public sealed class CreatureSkeleton
 {
     public Bone[] Bones { get; }
+
+    /// The two-bone limb chains recorded during resolution (ADR-0003), in
+    /// attachment order. Empty when the creature has no PartKind.Limb parts.
+    /// The animation layer (IK / classifier / gait / foot planner) drives the
+    /// skeleton through these rather than scanning bones.
+    public LimbChain[] LimbChains { get; }
 
     /// AABB enclosing every bone segment grown by its radius. Empty skeletons
     /// report a zero-size box at the origin.
     public Aabb Bounds { get; }
 
-    public CreatureSkeleton(Bone[] bones)
+    public CreatureSkeleton(Bone[] bones, LimbChain[]? limbChains = null)
     {
         Bones = bones ?? System.Array.Empty<Bone>();
+        LimbChains = limbChains ?? System.Array.Empty<LimbChain>();
         Bounds = ComputeBounds(Bones);
     }
 
