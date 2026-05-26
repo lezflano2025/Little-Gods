@@ -138,4 +138,44 @@ public class GodotMeshBuilderTests
         AssertFloat(rest.Origin.Y).IsEqualApprox(rootHead.Y, tol);
         AssertFloat(rest.Origin.Z).IsEqualApprox(rootHead.Z, tol);
     }
+
+    // -------------------------------------------------------------------------
+    // Skin — bind pose is the inverse global rest (M3 P0)
+    // -------------------------------------------------------------------------
+
+    [TestCase]
+    public void BuildSkin_bind_pose_inverts_global_rest_so_rest_is_undeformed()
+    {
+        // A two-bone chain: the child bends up off the root's +Z axis, so the
+        // parent transform is non-trivial and the round-trip is meaningful.
+        var root  = new Bone(new Vector3(0f, 0f, -1f), new Vector3(0f, 0f, 1f), 0.4f, 0.4f, -1);
+        var child = new Bone(new Vector3(0f, 0f, 1f),  new Vector3(0f, 1f, 1f), 0.3f, 0.2f, 0);
+        var skeleton = new CreatureSkeleton(new[] { root, child });
+
+        Skeleton3D skel3d = AutoFree(GodotMeshBuilder.BuildSkeleton3D(skeleton))!;
+        Skin skin = GodotMeshBuilder.BuildSkin(skeleton);
+
+        AssertThat(skin.GetBindCount()).IsEqual(2);
+        for (int i = 0; i < skeleton.Count; i++)
+        {
+            AssertThat(skin.GetBindBone(i)).IsEqual(i);
+            // Skinning matrix at rest = globalRest_i * bindPose_i must be identity
+            // (that is exactly what leaves the mesh undeformed in the rest pose).
+            Transform3D skinning = GlobalRest(skel3d, i) * skin.GetBindPose(i);
+            AssertThat(skinning.IsEqualApprox(Transform3D.Identity)).IsTrue();
+        }
+    }
+
+    /// Accumulate a bone's global rest from the Skeleton3D's local rests.
+    private static Transform3D GlobalRest(Skeleton3D s, int bone)
+    {
+        Transform3D t = s.GetBoneRest(bone);
+        int p = s.GetBoneParent(bone);
+        while (p >= 0)
+        {
+            t = s.GetBoneRest(p) * t;
+            p = s.GetBoneParent(p);
+        }
+        return t;
+    }
 }

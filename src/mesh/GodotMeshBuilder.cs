@@ -6,8 +6,8 @@ namespace LittleGods.Mesh;
 /// Converts pure C# mesh/skin/skeleton data into Godot scene-tree types.
 /// Called by CreatureMesher (M2 P2) after the full pipeline has run.
 ///
-/// ArrayMesh is ref-counted (Resource) — callers do not need to free it.
-/// Skeleton3D is a Node — callers own it and must add/free it appropriately.
+/// ArrayMesh / Skin are ref-counted (Resource) — callers do not need to free
+/// them. Skeleton3D is a Node — callers own it and must add/free it.
 public static class GodotMeshBuilder
 {
     // -------------------------------------------------------------------------
@@ -58,73 +58,117 @@ public static class GodotMeshBuilder
     // Skeleton3D
     // -------------------------------------------------------------------------
 
-    /// Build a Skeleton3D whose bone rests match the world-space bone data.
+    /// Build a fresh Skeleton3D whose bone rests match the world-space bones.
+    /// See PopulateSkeleton3D for the rest/parent convention.
+    public static Skeleton3D BuildSkeleton3D(CreatureSkeleton skeleton)
+        => PopulateSkeleton3D(new Skeleton3D(), skeleton);
+
+    /// (Re)populate an existing Skeleton3D from a CreatureSkeleton, in place.
+    /// Clears any current bones first, so the same node can be reused across
+    /// rebuilds (CreaturePreview does this to avoid node churn).
+    ///
     /// Bone rests are stored LOCAL to the parent (Godot convention):
     ///   root bone  → rest == global rest
     ///   child bone → rest == parentGlobal.AffineInverse() * global
     ///
     /// Parents always precede children in CreatureSkeleton.Bones, so each
     /// parent's global transform is already computed when we reach a child.
-    ///
-    /// Basis convention (+Z toward Tail):
-    ///   d     = (Tail - Head).Normalized()  (guarded for zero-length bones)
-    ///   up    = Vector3.Up, or Vector3.Right when nearly parallel to d
-    ///   right = up.Cross(d).Normalized()
-    ///   up    = d.Cross(right).Normalized()
-    ///   Basis = new Basis(right, up, d)  (column constructor: X=right Y=up Z=d)
-    public static Skeleton3D BuildSkeleton3D(CreatureSkeleton skeleton)
+    public static Skeleton3D PopulateSkeleton3D(Skeleton3D target, CreatureSkeleton skeleton)
     {
-        var result = new Skeleton3D();
+        target.ClearBones();
 
         if (skeleton.Count == 0)
         {
-            return result;
+            return target;
         }
 
-        var globalRests = new Transform3D[skeleton.Count];
+        Transform3D[] globalRests = ComputeGlobalRests(skeleton);
 
         for (int i = 0; i < skeleton.Count; i++)
         {
             Bone bone = skeleton.Bones[i];
-
-            // --- global rest transform ---
-            Transform3D globalRest = ComputeGlobalRest(bone);
-            globalRests[i] = globalRest;
-
-            // --- add to skeleton ---
-            result.AddBone($"bone_{i}");
+            target.AddBone($"bone_{i}");
 
             if (bone.ParentIndex < 0)
             {
-                result.SetBoneParent(i, -1);
-                result.SetBoneRest(i, globalRest);
+                target.SetBoneParent(i, -1);
+                target.SetBoneRest(i, globalRests[i]);
             }
             else
             {
-                result.SetBoneParent(i, bone.ParentIndex);
-                Transform3D localRest = globalRests[bone.ParentIndex].AffineInverse() * globalRest;
-                result.SetBoneRest(i, localRest);
+                target.SetBoneParent(i, bone.ParentIndex);
+                Transform3D localRest = globalRests[bone.ParentIndex].AffineInverse() * globalRests[i];
+                target.SetBoneRest(i, localRest);
             }
         }
 
-        return result;
+        return target;
+    }
+
+    // -------------------------------------------------------------------------
+    // Skin (bind poses) — M3 P0
+    // -------------------------------------------------------------------------
+
+    /// Build a Skin whose bind pose for bone i is the INVERSE of that bone's
+    /// global rest. The skinning matrix is `globalPose_i * bindPose_i`, so at
+    /// rest (globalPose == globalRest) it is the identity and the mesh is
+    /// undeformed; posing the Skeleton3D then deforms the skin.
+    ///
+    /// Bind index i maps to bone i (the mesh's ARRAY_BONES are bone indices).
+    /// Returns an empty Skin for an empty skeleton.
+    public static Skin BuildSkin(CreatureSkeleton skeleton)
+    {
+        var skin = new Skin();
+
+        if (skeleton.Count == 0)
+        {
+            return skin;
+        }
+
+        Transform3D[] globalRests = ComputeGlobalRests(skeleton);
+
+        skin.SetBindCount(skeleton.Count);
+        for (int i = 0; i < skeleton.Count; i++)
+        {
+            skin.SetBindBone(i, i);
+            skin.SetBindPose(i, globalRests[i].AffineInverse());
+        }
+
+        return skin;
     }
 
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
 
+    /// Global rest transform of every bone. Bones are already world-space, so a
+    /// bone's global rest is built directly from its Head/Tail — no parent-chain
+    /// accumulation needed. BuildSkeleton3D and BuildSkin share this so the
+    /// Skeleton3D rests and the Skin bind poses are guaranteed consistent.
+    private static Transform3D[] ComputeGlobalRests(CreatureSkeleton skeleton)
+    {
+        var globals = new Transform3D[skeleton.Count];
+        for (int i = 0; i < skeleton.Count; i++)
+        {
+            globals[i] = ComputeGlobalRest(skeleton.Bones[i]);
+        }
+        return globals;
+    }
+
+    /// Build a bone's global rest transform from its world-space Head/Tail.
+    /// Basis convention (+Z toward Tail):
+    ///   d     = (Tail - Head).Normalized()  (guarded for zero-length bones)
+    ///   up    = Vector3.Up, or Vector3.Right when nearly parallel to d
+    ///   right = up.Cross(d).Normalized()
+    ///   up    = d.Cross(right).Normalized()
+    ///   Basis = new Basis(right, up, d)  (column constructor: X=right Y=up Z=d)
     private static Transform3D ComputeGlobalRest(Bone bone)
     {
         Vector3 origin = bone.Head;
 
-        // Direction from Head to Tail; guard zero-length bones.
         Vector3 d = bone.Tail - bone.Head;
         d = d.LengthSquared() > 1e-12f ? d.Normalized() : Vector3.Back;
 
-        // Build orthonormal basis with +Z along d.
-        // Use Vector3.Up as the reference "up", fall back to Vector3.Right when
-        // d is nearly parallel to Up (dot product close to ±1).
         Vector3 refUp = Mathf.Abs(d.Dot(Vector3.Up)) < 0.99f
             ? Vector3.Up
             : Vector3.Right;
@@ -132,7 +176,6 @@ public static class GodotMeshBuilder
         Vector3 right = refUp.Cross(d).Normalized();
         Vector3 up    = d.Cross(right).Normalized();
 
-        // Basis column constructor: X=right, Y=up, Z=d.
         var basis = new Basis(right, up, d);
         return new Transform3D(basis, origin);
     }

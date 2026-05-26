@@ -1,4 +1,5 @@
 using Godot;
+using LittleGods.Anim;
 using LittleGods.Creature;
 
 namespace LittleGods.Mesh;
@@ -7,13 +8,20 @@ namespace LittleGods.Mesh;
 /// result in the editor viewport. GDScript cannot call C# static methods, so
 /// this node exposes instance methods instead.
 ///
-/// Place one CreaturePreview in the editor scene; call Rebuild() each time the
-/// recipe changes. The child MeshInstance3D ("CreatureMesh") is created lazily
-/// so unit tests can call Rebuild() without a live scene tree.
+/// Node layout (built lazily so unit tests can call Rebuild() off-tree):
+///   CreaturePreview (this)
+///     └─ Skeleton3D "CreatureSkeleton"
+///          └─ MeshInstance3D "CreatureMesh"  (Skeleton = "..", Skin = bind pose)
+///
+/// Placing the mesh under the skeleton with a Skin (M3 P0) makes posing the
+/// Skeleton3D deform the skinned mesh. Call Rebuild() when the recipe changes;
+/// call ApplyPose() each tick to animate.
 [GlobalClass]
 public partial class CreaturePreview : Node3D
 {
+    private Skeleton3D? _skeleton;
     private MeshInstance3D? _meshInstance;
+    private CreatureSkeleton? _lastSkeleton;
     private GridParams _gridParams = GridParams.Default;
 
     /// Vertex count from the most recent Rebuild call.
@@ -24,18 +32,30 @@ public partial class CreaturePreview : Node3D
     /// Zero when the last recipe produced no geometry.
     public int LastTriangleCount { get; private set; }
 
-    public override void _Ready() => EnsureMeshInstance();
+    /// The Skeleton3D driving the skin. Null before the first Rebuild. Exposed
+    /// so the animation layer (and tests) can read/drive bone poses directly.
+    public Skeleton3D? Skeleton => _skeleton;
+
+    public override void _Ready() => EnsureNodes();
 
     /// Called from GDScript each time the recipe changes.
     /// Safe to call when the node is not in the scene tree (unit tests).
     /// Safe to call with an unknown/null spine — produces zero geometry, no exception.
     public void Rebuild(Recipe recipe, PartRegistry registry)
     {
-        EnsureMeshInstance();
+        EnsureNodes();
 
         var result = CreatureMesher.Build(recipe, registry, _gridParams);
+        _lastSkeleton = result.Skeleton;
+
+        // Rebuild the bone hierarchy in place (no node churn across rebuilds).
+        GodotMeshBuilder.PopulateSkeleton3D(_skeleton!, result.Skeleton);
 
         _meshInstance!.Mesh = GodotMeshBuilder.BuildArrayMesh(result.Mesh, result.Skin);
+        // A Skin is meaningful only when there are bones to bind to.
+        _meshInstance.Skin = result.Skeleton.Count > 0
+            ? GodotMeshBuilder.BuildSkin(result.Skeleton)
+            : null;
 
         LastVertexCount   = result.Mesh.VertexCount;
         LastTriangleCount = result.Mesh.TriangleCount;
@@ -53,28 +73,66 @@ public partial class CreaturePreview : Node3D
     /// Returns an empty box when there is no geometry yet.
     public Aabb GetMeshAabb() => _meshInstance?.GetAabb() ?? new Aabb();
 
+    /// Apply a pose to the skeleton: each bone's local pose = restLocal * delta
+    /// (see Anim.Pose). Identity deltas restore the rest pose (undeformed mesh).
+    /// No-op before the first Rebuild.
+    public void ApplyPose(Pose pose)
+    {
+        if (_skeleton is null)
+        {
+            return;
+        }
+
+        int n = _skeleton.GetBoneCount();
+        for (int i = 0; i < n; i++)
+        {
+            Transform3D local = _skeleton.GetBoneRest(i) * pose.Delta(i);
+            _skeleton.SetBonePosePosition(i, local.Origin);
+            _skeleton.SetBonePoseRotation(i, local.Basis.GetRotationQuaternion());
+            _skeleton.SetBonePoseScale(i, local.Basis.Scale);
+        }
+    }
+
+    /// Editor / snapshot helper (GDScript-callable, since Anim.Pose is C#-only):
+    /// bend the first limb chain's knee by `radians` about the limb's local bend
+    /// axis, via ApplyPose. Returns false when there is no limb to bend. Used by
+    /// the posed-knee snapshot and handy for eyeballing deformation in-editor.
+    public bool BendFirstKnee(float radians)
+    {
+        if (_skeleton is null || _lastSkeleton is null || _lastSkeleton.LimbChains.Length == 0)
+        {
+            return false;
+        }
+
+        LimbChain chain = _lastSkeleton.LimbChains[0];
+        // Rotate about local X (perpendicular to the bone's +Z length axis),
+        // which swings the lower segment + foot around the knee.
+        var delta = new Transform3D(new Basis(Vector3.Right, radians), Vector3.Zero);
+        ApplyPose(Pose.Rest(_skeleton.GetBoneCount()).With(chain.KneeBone, delta));
+        return true;
+    }
+
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
 
-    /// Lazily create the child MeshInstance3D and its clay material.
-    /// Guarded against double-creation so it is safe to call from both
-    /// _Ready and Rebuild.
-    private void EnsureMeshInstance()
+    /// Lazily create the Skeleton3D + child MeshInstance3D (with the cartoon
+    /// material). Guarded so it is safe to call from both _Ready and Rebuild.
+    private void EnsureNodes()
     {
-        if (_meshInstance is not null)
+        if (_skeleton is not null)
         {
             return;
         }
+
+        _skeleton = new Skeleton3D { Name = "CreatureSkeleton" };
+        AddChild(_skeleton);
 
         _meshInstance = new MeshInstance3D
         {
             Name = "CreatureMesh",
             // Spore-style stylized cartoon look (ADR-0004): saturated albedo,
             // smooth-ish, zero metallic, soft rim light for the rounded read.
-            // First pass via StandardMaterial3D; a cel shader + outline is a
-            // later refinement. Per-creature paint will drive AlbedoColor once
-            // the paint pipeline lands.
             MaterialOverride = new StandardMaterial3D
             {
                 AlbedoColor = new Color(0.46f, 0.74f, 0.55f), // friendly Spore green
@@ -86,6 +144,9 @@ public partial class CreaturePreview : Node3D
             },
         };
 
-        AddChild(_meshInstance);
+        // The mesh is a child of the skeleton; "../" resolves to it so Godot
+        // skins this MeshInstance3D against the skeleton's bone poses.
+        _skeleton.AddChild(_meshInstance);
+        _meshInstance.Skeleton = new NodePath("..");
     }
 }
