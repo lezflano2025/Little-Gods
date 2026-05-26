@@ -76,8 +76,13 @@ public static class SkeletonResolver
                 parentPart = registry.Get(recipe.Attachments[att.ParentPartIndex].ChildPartId);
             }
 
-            Vector3 slotPos = SlotPosition(parentPart, att.ParentSlotName);
-            var slotXform = new Transform3D(Basis.Identity, slotPos);
+            AttachmentPoint? slot = FindSlot(parentPart, att.ParentSlotName);
+            Vector3 slotPos = slot?.LocalPosition ?? Vector3.Zero;
+            Vector3 slotNormal = slot?.LocalNormal ?? Vector3.Back;
+            // Orient the slot frame so +Z faces the slot's outward normal, so a
+            // part grows along that normal (e.g. shoulders splay sideways, the
+            // tail extends back) rather than all parts collapsing onto world +Z.
+            var slotXform = new Transform3D(BasisLookingAlong(slotNormal), slotPos);
 
             // Anchor frame: where this part sits, before its own morph.
             Transform3D anchorFrame = parentFrame * slotXform * att.LocalTransform;
@@ -111,20 +116,32 @@ public static class SkeletonResolver
         return new CreatureSkeleton(bones.ToArray());
     }
 
-    private static Vector3 SlotPosition(Part? part, string slotName)
+    private static AttachmentPoint? FindSlot(Part? part, string slotName)
     {
         if (part == null)
         {
-            return Vector3.Zero;
+            return null;
         }
         foreach (var ap in part.AttachmentPoints)
         {
             if (ap != null && ap.Name == slotName)
             {
-                return ap.LocalPosition;
+                return ap;
             }
         }
-        return Vector3.Zero;
+        return null;
+    }
+
+    /// Orthonormal basis whose +Z column points along n (the slot normal).
+    /// Picks a stable reference up-vector to avoid degeneracy when n is
+    /// near-vertical. Used to orient a part's bone along its slot normal.
+    private static Basis BasisLookingAlong(Vector3 n)
+    {
+        n = n.LengthSquared() > 1e-12f ? n.Normalized() : Vector3.Back;
+        Vector3 up = Mathf.Abs(n.Dot(Vector3.Up)) < 0.99f ? Vector3.Up : Vector3.Right;
+        Vector3 x = up.Cross(n).Normalized();
+        Vector3 y = n.Cross(x).Normalized();
+        return new Basis(x, y, n);
     }
 
     private static Morph MorphFor(Recipe recipe, int morphIndex)

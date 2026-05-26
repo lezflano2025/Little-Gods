@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/editor/CreatureEditor.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/editor/PartPalette.tscn" id="2"]
-[ext_resource type="PackedScene" path="res://scenes/editor/Workspace.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/editor/Preview3D.tscn" id="3"]
 [ext_resource type="PackedScene" path="res://scenes/editor/Properties.tscn" id="4"]
 
 [node name="CreatureEditor" type="Control"]
@@ -46,7 +46,7 @@ custom_minimum_size = Vector2(180, 0)
 [node name="CenterPane" type="MarginContainer" parent="VBox/HSplit"]
 size_flags_horizontal = 3
 
-[node name="Workspace" parent="VBox/HSplit/CenterPane" instance=ExtResource("3")]
+[node name="Preview3D" parent="VBox/HSplit/CenterPane" instance=ExtResource("3")]
 
 [node name="RightPane" type="MarginContainer" parent="VBox/HSplit"]
 custom_minimum_size = Vector2(220, 0)
