@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Godot;
 using LittleGods.Anim;
 using LittleGods.Creature;
@@ -22,6 +23,8 @@ public partial class CreaturePreview : Node3D
     private Skeleton3D? _skeleton;
     private MeshInstance3D? _meshInstance;
     private CreatureSkeleton? _lastSkeleton;
+    private Recipe? _lastRecipe;
+    private PartRegistry? _lastRegistry;
     private GridParams _gridParams = GridParams.Default;
 
     /// Vertex count from the most recent Rebuild call.
@@ -47,6 +50,8 @@ public partial class CreaturePreview : Node3D
 
         var result = CreatureMesher.Build(recipe, registry, _gridParams);
         _lastSkeleton = result.Skeleton;
+        _lastRecipe = recipe;
+        _lastRegistry = registry;
 
         // Rebuild the bone hierarchy in place (no node churn across rebuilds).
         GodotMeshBuilder.PopulateSkeleton3D(_skeleton!, result.Skeleton);
@@ -110,6 +115,58 @@ public partial class CreaturePreview : Node3D
         var delta = new Transform3D(new Basis(Vector3.Right, radians), Vector3.Zero);
         ApplyPose(Pose.Rest(_skeleton.GetBoneCount()).With(chain.KneeBone, delta));
         return true;
+    }
+
+    /// Editor / snapshot helper (GDScript-callable): run one deterministic
+    /// locomotion tick at `seconds`, apply the resulting walk pose, and return
+    /// the body world position (the caller positions THIS node so the body
+    /// advances + bobs). Returns Vector3.Zero with no pose change when there is
+    /// no walkable creature. Legs are the chains the classifier marks as Leg,
+    /// falling back to every limb chain.
+    public Vector3 WalkTick(double seconds)
+    {
+        if (_skeleton is null || _lastSkeleton is null || _lastSkeleton.LimbChains.Length == 0)
+        {
+            return Vector3.Zero;
+        }
+
+        int[] legs = LegChainIndices();
+        if (legs.Length == 0)
+        {
+            return Vector3.Zero;
+        }
+
+        Gait gait = GaitController.ForLegCount(legs.Length, LocomotionParams.Default.CadenceHz);
+        LocomotionResult result = Locomotion.Tick(_lastSkeleton, legs, gait, LocomotionParams.Default, seconds);
+        ApplyPose(result.Pose);
+        return result.BodyPosition;
+    }
+
+    /// Indices into _lastSkeleton.LimbChains that the classifier marks as legs;
+    /// every chain when classification finds none (keeps a lone-limb test walking).
+    private int[] LegChainIndices()
+    {
+        int n = _lastSkeleton!.LimbChains.Length;
+        LimbType[] types = _lastRecipe != null && _lastRegistry != null
+            ? LimbClassifier.Classify(_lastRecipe, _lastRegistry, _lastSkeleton)
+            : System.Array.Empty<LimbType>();
+
+        var legs = new List<int>();
+        for (int i = 0; i < n; i++)
+        {
+            if (i < types.Length && types[i] == LimbType.Leg)
+            {
+                legs.Add(i);
+            }
+        }
+        if (legs.Count == 0)
+        {
+            for (int i = 0; i < n; i++)
+            {
+                legs.Add(i);
+            }
+        }
+        return legs.ToArray();
     }
 
     // -------------------------------------------------------------------------
