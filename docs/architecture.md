@@ -60,6 +60,22 @@ Every procedural module accepts an explicit `ulong seed`. No module reads `DateT
   | `static GodotMeshBuilder` | `GodotMeshBuilder.cs` | `(MeshData, SkinData) → ArrayMesh`; `CreatureSkeleton → Skeleton3D` |
   | `partial class CreaturePreview` | `CreaturePreview.cs` | `Node3D` bridge; `Rebuild(Recipe, PartRegistry)` instance method for GDScript |
 
-- **M3** — Two-bone analytic IK solver, gait phase model (per-limb phase offsets), limb-type classifier (leg / arm / wing / tail).
+- **M3** — Done. Procedural animation in `src/anim/` (pure C#, deterministic, time enters as an explicit `double seconds`):
+
+  | Type | File | Role |
+  |-|-|-|
+  | `readonly struct LimbChain` | `LimbChain.cs` | Resolved 2-bone limb: root/knee/foot bone indices, segment lengths, slot (ADR-0003) |
+  | `readonly struct IkResult` | `IkResult.cs` | IK output: knee + foot positions + Reachable flag |
+  | `enum LimbType` | `LimbType.cs` | Leg / Arm / Wing / Tail / Other |
+  | `readonly struct Gait` | `Gait.cs` | Cadence, duty factor, per-leg phase offsets |
+  | `readonly struct Pose` | `Pose.cs` | Per-bone local transform deltas (`posedLocal = rest · delta`) |
+  | `struct JiggleParams` | `Jiggle.cs` | Spring stiffness + damping |
+  | `static TwoBoneIk` | `TwoBoneIk.cs` | Law-of-cosines 2-bone IK; reach-clamped, degenerate-safe |
+  | `static LimbClassifier` | `LimbClassifier.cs` | `LimbType` per chain from slot + part id |
+  | `static GaitController` | `GaitController.cs` | Phase presets by leg count (biped / quadruped / hexapod / octopod); `PhaseOf`, `IsStance` |
+  | `static Locomotion` | `Locomotion.cs` | Per-tick gait → foot targets → IK → `Pose` + body advance/bob |
+  | `static Jiggle` | `Jiggle.cs` | Spring-damped secondary motion (deterministic) |
+
+  Also M3: `SkeletonResolver` splits `PartKind.Limb` into 2-bone chains (ADR-0003); `GodotMeshBuilder.BuildSkin` + `CreaturePreview.ApplyPose` / `WalkTick` make posing the `Skeleton3D` deform the skin. The **Hecker gate** — 2/4/6/8-leg creatures walk 60 s with no IK breaks via one code path — passes (`HeckerWalkTests`).
 - **M4** — Behavior tree node taxonomy, blackboard schema, LimboAI integration.
 - **M5** — Supabase schema (`creatures`, `users`, `gallery_metadata`), recipe upload/download flow, auth.
