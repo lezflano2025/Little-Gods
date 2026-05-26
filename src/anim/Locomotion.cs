@@ -2,6 +2,7 @@ using System;
 using Godot;
 using static Godot.Mathf;
 using LittleGods.Mesh;
+using LittleGods.World;
 
 namespace LittleGods.Anim;
 
@@ -91,22 +92,25 @@ public static class Locomotion
         int[] legChainIndices,
         Gait gait,
         LocomotionParams p,
-        double seconds)
+        double seconds,
+        IGroundSampler? ground = null)
     {
         int legCount = legChainIndices?.Length ?? 0;
         var footTargets = new Vector3[legCount];
         var inStance = new bool[legCount];
         var pose = Pose.Rest(skeleton.Count);
 
-        // Body advance + bob.
+        // Body advance + bob. The body rides the ground height under it (a flat
+        // y = 0 plane when no sampler is supplied, which is the M3 behaviour).
         double cyc = seconds * p.CadenceHz;
         float cyclePhase = (float)(cyc - Math.Floor(cyc));
         float bob = p.BobAmplitude * Sin(Tau * 2f * cyclePhase); // two bobs per cycle
-        float bodyY = p.BodyHeight + bob;
-        var bodyPosition = new Vector3(0f, bodyY, (float)(p.ForwardSpeed * seconds));
+        float bodyX = 0f;
+        float bodyZ = (float)(p.ForwardSpeed * seconds);
+        float bodyGround = ground?.HeightAt(bodyX, bodyZ) ?? 0f;
+        float bodyY = bodyGround + p.BodyHeight + bob;
+        var bodyPosition = new Vector3(bodyX, bodyY, bodyZ);
 
-        // Body-local Y of the world ground plane (y = 0).
-        float groundLocalY = -bodyY;
         // Peak-to-peak foot travel that keeps a stance foot world-fixed.
         float halfTravel = p.StrideLength * gait.DutyFactor * 0.5f;
 
@@ -144,7 +148,13 @@ public static class Locomotion
                 lift = p.StepHeight * Sin(Pi * sw);
             }
 
-            var footTarget = new Vector3(hip.X, groundLocalY + lift, footZ);
+            // Plant the foot on the terrain height under it; body-local Y is
+            // that ground height (plus swing lift) minus the body's world Y.
+            // With no sampler this collapses to the M3 flat plane: lift - bodyY.
+            float footWorldX = bodyPosition.X + hip.X;
+            float footWorldZ = bodyPosition.Z + footZ;
+            float footGround = ground?.HeightAt(footWorldX, footWorldZ) ?? 0f;
+            var footTarget = new Vector3(hip.X, footGround + lift - bodyPosition.Y, footZ);
             footTargets[li] = footTarget;
 
             // Knees bend toward the direction of travel (+Z).
