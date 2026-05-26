@@ -106,6 +106,24 @@ public class SkeletonResolverTests
     }
 
     [TestCase]
+    public void Bones_extend_along_their_slot_normal()
+    {
+        var b = RecipeBuilder.ForNewCreature("spine_basic", _registry);
+        int tailIdx = b.AddAttachment(-1, "tail", "limb_tail");            // slot normal (0,0,-1)
+        int shoulderIdx = b.AddAttachment(-1, "left_shoulder", "limb_walker"); // slot normal (-1,0,0)
+
+        var skel = SkeletonResolver.Resolve(b.Recipe, _registry);
+
+        // Tail grows toward -Z (backward), not onto world +Z.
+        var tail = skel.Bones[tailIdx + 1];
+        AssertThat(tail.Tail.Z - tail.Head.Z < -0.1f).IsTrue();
+
+        // Left shoulder limb grows toward -X (splays left).
+        var shoulder = skel.Bones[shoulderIdx + 1];
+        AssertThat(shoulder.Tail.X - shoulder.Head.X < -0.1f).IsTrue();
+    }
+
+    [TestCase]
     public void Unknown_spine_yields_empty_skeleton()
     {
         var recipe = new Recipe { SpinePartId = "does_not_exist" };
